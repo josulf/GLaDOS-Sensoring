@@ -38,10 +38,6 @@ typedef struct {
 
 stData sensorData;
 
-/*
- * Auxiliary Flags
- */
-int flagEmailSent=0;
 
 /*
  * Local Functions
@@ -56,13 +52,86 @@ static uint32_t light_check();
 static uint32_t temp_check();
 static void sensor_check();
 
+
+
+/*
+ * Auxiliary Flags
+ */
+int flagEmailSent=0;
+int flagAuxMsg=0;
+
+//timer
+
+uint32_t Count_20us = 0;
+uint32_t contTick = 0;
+int contTick2 = 0;
+int contSens = 0;
+int contMsg = 0;
+int contMail = 0;
+int flagEraseMsg=0;
+int flagSens=0;
+int flagMail=0;
+
+//libMU_Timer_Stopwatch_t			time_int;
+
+void timerTick(void *param)
+{
+	/* Measure interrupt execution period */
+		//libMU_Stats_Update( (libMU_Stats_uint32_t*)&stat_int_period,
+		//		libMU_Timer_StopwatchMeasure(&time_int) );
+/*		Count_20us++;
+		if( (Count_20us & 0x3FFFu) == 0 )
+			contTick++;
+		if(contTick > 5)
+		{
+			contTick2++;
+			contTick=0;
+			flagSens=1;
+		}*/
+		/* Measure interrupt execution time */
+		//libMU_Stats_Update( (libMU_Stats_uint32_t*)&stat_int_exectime,
+		//		libMU_Timer_StopwatchPeek(&time_int) );
+/*
+	if(contTick2 > 3)
+	{
+		contTick2 = 0;
+		if(flagAuxMsg==1)
+			contMsg++;
+		if(flagEmailSent == 1)
+		{
+			contMail++;
+		}
+		if(flagSens==0)
+		{
+			contSens++;
+		}
+	}
+	if(contMsg>2)
+		flagEraseMsg=1;
+
+	if(contSens > 20)
+	{
+		flagSens=1;
+		contSens = 0;
+	}
+
+	if(contMail > 120)
+	{
+		flagEmailSent = 0;
+	}
+*/
+
+}
 /*
  * Component start up. From demo_09_Internet.c
  */
 void main_demo_glados_server ()
 {
 	libMU_Display_Initialize();
-//	libMU_Timer_Initialize();
+	libMU_Timer_Initialize();
+	libMU_Timer_SetFrequency( 50000 );
+//	libMU_Timer_StopwatchStart( &time_int );
+	libMU_Timer_SetHandler(timerTick, NULL );
 	libMU_AD_Initialize();
 	libMU_GPIO_Initialize( GPIO_PC5, GPIO_INPUT );
 	libMU_LED_Initialize();
@@ -83,7 +152,6 @@ void main_demo_glados_server ()
  */
 static void Internet_ProcesamientoDePagina( char* data, unsigned short int len )
 {
-	//libMU_Display_DrawString("Data registered.", 0, 85, 15 );
 }
 
 /*
@@ -92,7 +160,7 @@ static void Internet_ProcesamientoDePagina( char* data, unsigned short int len )
 static void send_data_log()
 {
 	char msg[200];
-	char strAux[20];
+	char strAux[50];
 	int res;
 	IPAddress_t ip;
 
@@ -103,9 +171,11 @@ static void send_data_log()
 	libMU_Internet_DNS_resolution( "api.pushingbox.com", &ip, 10000 );
 	res = libMU_Internet_GetPage (msg,Internet_ProcesamientoDePagina);
 	if( !res )
-		libMU_Display_DrawString( "Send ERROR", 0, 85, 15 );
+		libMU_Display_DrawString( "Send ERROR          ", 0, 72, 15 );
 	else
-		libMU_Display_DrawString( "Data registered", 0, 85, 15 );
+		libMU_Display_DrawString( "Data registered     ", 0, 72, 15 );
+	flagAuxMsg=1;
+	contMsg = 0;
 
 }
 
@@ -123,9 +193,11 @@ static void send_email_alarm()
 	libMU_Internet_DNS_resolution( "api.pushingbox.com", &ip, 10000 );
 	res = libMU_Internet_GetPage (msg,Internet_ProcesamientoDePagina);
 	if( !res )
-		libMU_Display_DrawString( "Send ERROR", 0, 85, 15 );
+		libMU_Display_DrawString( "Send ERROR          ", 0, 72, 15 );
 	else
-		libMU_Display_DrawString( "E-mail send OK", 0, 85, 15 );
+		libMU_Display_DrawString( "E-mail send OK      ", 0, 72, 15 );
+	flagAuxMsg=1;
+	contMsg = 0;
 }
 
 
@@ -136,18 +208,34 @@ static void mainTask (void *param)
 {
 	IPAddress_t ip;
 	char msg[50];
-
 	while(1)
 	{
+		libMU_Display_DrawString("GLaDOS server    EE21", 0, 0, 15 );
+		libMU_Display_DrawString("=====================", 0, 8, 6);
+		libMU_Display_DrawString("=====================", 0, 80, 6);
+
+		/*if(flagEraseMsg == 1)
+		{
+			flagEraseMsg = 0;
+			flagAuxMsg = 0;
+			libMU_Display_DrawString( "                    ", 0, 85, 15 );
+		}*/
+
 		sensor_check();
+
+		if(libMU_Button_GetStatus(BUTTON_DOWN) )
+		{
+			libMU_Display_DrawString("                     ", 0, 72, 15);
+		}
+
 		switch( libMU_Internet_GetStatus() )
 		{
 			case NETWORK_NO_CONNECTION:
-				libMU_Display_DrawString("NO connection!", 0, 0, 15 );
+				libMU_Display_DrawString("NO connection!       ", 0, 88, 12 );
 				libMU_Internet_Delay( 250 );
 				break;
 			case NETWORK_IP_MISSING:
-				libMU_Display_DrawString("IP missing!", 0, 0, 12 );
+				libMU_Display_DrawString("IP missing!          ", 0, 88, 12 );
 				libMU_Internet_Delay( 250 );
 				libMU_snprintf( msg, sizeof(msg), "IP<%d.%d.%d.%d>    ",
 														libMU_IP_1( ip ), libMU_IP_2( ip ),
@@ -159,7 +247,13 @@ static void mainTask (void *param)
 				libMU_snprintf(msg, sizeof(msg), "IP<%d.%d.%d.%d>    ",
 							libMU_IP_1( ip ), libMU_IP_2( ip ),
 							libMU_IP_3( ip ), libMU_IP_4( ip ) );
-				libMU_Display_DrawString( msg, 0, 0, 12 );
+				libMU_Display_DrawString( msg, 0, 88, 12 );
+
+			/*	if(flagSens==1)
+				{
+					flagSens = 0;
+					send_data_log();
+				}*/
 
 				if(flagEmailSent == 0)
 				{
@@ -167,20 +261,24 @@ static void mainTask (void *param)
 					{
 						send_email_alarm();
 						flagEmailSent = 1;
+						contMail = 0;
 					}
 				}
+				if(libMU_Button_GetStatus(BUTTON_UP) )
+				{
+					send_data_log();
+				}
 
-				if(libMU_Button_Pressed(BUTTON_SELECT))
+				if(libMU_Button_GetStatus(BUTTON_SELECT) )
 				{
 					flagEmailSent = 0;
 				}
-				//send_data_log(data1, data2);
 				libMU_Internet_Delay( 100 );
 				break;
 
 			case NETWORK_ERROR:
 			default:
-				libMU_Display_DrawString( "Network ERROR", 0, 0, 12 );
+				libMU_Display_DrawString( "Network ERROR       ", 0, 88, 12 );
 				libMU_Internet_Delay( 250 );
 				break;
 		}
@@ -193,13 +291,19 @@ static void mainTask (void *param)
  */
 static int tilt_check()
 {
-	if(libMU_GPIO_GetStatus(GPIO_PC5))
-	{
-		libMU_Display_DrawString("Tilt = 0", 0, 20, 15 );
-		return 0;
-	}
-	libMU_Display_DrawString("Tilt = 1", 0, 20, 15 );
-	return 1;
+	int ret = 0;
+	char str[50];
+
+	ret = !libMU_GPIO_GetStatus(GPIO_PC5);
+
+	sprintf(str,"Tilt = %d   ",ret);
+	if(flagEmailSent)
+		strcat(str,"(ALARM ON)");
+	else
+		strcat(str,"          ");
+	libMU_Display_DrawString(str, 0, 20, 15 );
+	return ret;
+
 }
 
 /*
@@ -209,10 +313,10 @@ static int tilt_check()
 static uint32_t light_check()
 {
 	uint32_t value;
-	char str[25];
+	char str[50];
 	value = libMU_AD_GetChannelValue(ADC_CHANNEL_0);
-	sprintf(str,"Light = %d",value);
-	libMU_Display_DrawString(str, 0, 35, 15 );
+	sprintf(str,"Light = %d       ",value);
+	libMU_Display_DrawString(str, 0, 30, 15 );
 	return value;
 }
 
@@ -223,10 +327,10 @@ static uint32_t light_check()
 static uint32_t temp_check()
 {
 	uint32_t value;
-	char str[25];
+	char str[50];
 	value = libMU_AD_GetChannelValue(ADC_CHANNEL_1);
-	sprintf(str,"Temp = %d",value);
-	libMU_Display_DrawString(str, 0, 50, 15 );
+	sprintf(str,"Temp = %d       ",value);
+	libMU_Display_DrawString(str, 0, 40, 15 );
 	return value;
 }
 
