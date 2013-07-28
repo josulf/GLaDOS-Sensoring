@@ -12,6 +12,8 @@
 #include <string.h>
 #include <libMU/stdlib.h>
 
+#define LIBMU_SNPRINTF_USE_FLOAT
+
 /**
  * Constants for snprintf()/vsnprintf() functions
  */
