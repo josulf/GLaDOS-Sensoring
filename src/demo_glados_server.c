@@ -25,14 +25,11 @@
  */
 static const char *urlPushBox = "http://api.pushingbox.com/pushingbox?devid=";	///< main URL string for Pushing Box API
 static const char *eMailDevID = "vC2FCE1514030AB3";								///< Device ID for warning_email scenario
-static const char *dataLogDevID = "v2F47507140177A3";							///< Device ID for dataLog scenario
+static const char *dataLogDevID = "v00C14CE1FAAD6F0";							///< Device ID for dataLog scenario
 
 /*
  * Sensor data variables
  */
-//int
-//int data1=0;
-//int data2=1;
 typedef struct {
 	int			tilt;
 	uint32_t 	temp;
@@ -41,21 +38,28 @@ typedef struct {
 
 stData sensorData;
 
+/*
+ * Auxiliary Flags
+ */
 int flagEmailSent=0;
 
-void main_demo_pushingBox ();
+/*
+ * Local Functions
+ */
+void main_demo_glados_server ();
 static void Internet_ProcesamientoDePagina( char* data, unsigned short int len ) ;
-static void send_data_log(unsigned int d1,unsigned int d2);
+static void send_data_log();
 static void send_email_alarm();
 static void mainTask (void *param);
 static int tilt_check();
 static uint32_t light_check();
 static uint32_t temp_check();
+static void sensor_check();
 
 /*
  * Component start up. From demo_09_Internet.c
  */
-void main_demo_pushingBox ()
+void main_demo_glados_server ()
 {
 	libMU_Display_Initialize();
 //	libMU_Timer_Initialize();
@@ -85,7 +89,7 @@ static void Internet_ProcesamientoDePagina( char* data, unsigned short int len )
 /*
  * Send data to google doc Form through pushingBox API
  */
-static void send_data_log(unsigned int d1,unsigned int d2)
+static void send_data_log()
 {
 	char msg[200];
 	char strAux[20];
@@ -94,7 +98,7 @@ static void send_data_log(unsigned int d1,unsigned int d2)
 
 	strcpy(msg,urlPushBox);
 	strcat(msg,dataLogDevID);
-	sprintf(strAux,"&data1=%d&data2=%d",d1,d2);
+	sprintf(strAux,"&tilt=%d&temp=%d&light=%d",sensorData.tilt,sensorData.temp,sensorData.light);
 	strcat(msg,strAux);
 	libMU_Internet_DNS_resolution( "api.pushingbox.com", &ip, 10000 );
 	res = libMU_Internet_GetPage (msg,Internet_ProcesamientoDePagina);
@@ -135,10 +139,7 @@ static void mainTask (void *param)
 
 	while(1)
 	{
-		libMU_AD_StartConversion();
-		sensorData.tilt = tilt_check();
-		sensorData.light = light_check();
-		sensorData.temp = temp_check();
+		sensor_check();
 		switch( libMU_Internet_GetStatus() )
 		{
 			case NETWORK_NO_CONNECTION:
@@ -187,19 +188,24 @@ static void mainTask (void *param)
 }
 
 /*
- * Sensor check function
+ * Tilt detector status
+ * @return device status 1 OK, 0 UPSIDE DOWN
  */
 static int tilt_check()
 {
 	if(libMU_GPIO_GetStatus(GPIO_PC5))
 	{
-		libMU_Display_DrawString("Tilt = 1", 0, 20, 15 );
-		return 1;
+		libMU_Display_DrawString("Tilt = 0", 0, 20, 15 );
+		return 0;
 	}
-	libMU_Display_DrawString("Tilt = 0", 0, 20, 15 );
-	return 0;
+	libMU_Display_DrawString("Tilt = 1", 0, 20, 15 );
+	return 1;
 }
 
+/*
+ * LDR sensor status
+ * @return LDR ADC value
+ */
 static uint32_t light_check()
 {
 	uint32_t value;
@@ -210,6 +216,10 @@ static uint32_t light_check()
 	return value;
 }
 
+/*
+ * NTC sensor status
+ * @return NTC ADC value
+ */
 static uint32_t temp_check()
 {
 	uint32_t value;
@@ -218,4 +228,15 @@ static uint32_t temp_check()
 	sprintf(str,"Temp = %d",value);
 	libMU_Display_DrawString(str, 0, 50, 15 );
 	return value;
+}
+
+/*
+ * Whole sensor system check
+ */
+static void sensor_check()
+{
+	libMU_AD_StartConversion();
+	sensorData.tilt = tilt_check();
+	sensorData.light = light_check();
+	sensorData.temp = temp_check();
 }

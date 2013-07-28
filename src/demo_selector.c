@@ -25,7 +25,7 @@ extern	void main_demo_07(void);	/* FreeRTOS demo */
 extern	void main_demo_07b(void);	/* FreeRTOS demo + Thread Safe serial communications */
 extern	void main_demo_08(void);	/* Music demo */
 extern	void main_demo_09(void);	/* Internet client and server demo */
-extern 	void main_demo_pushingBox(void);	/*pushingBox data Log and email alert demo*/
+extern 	void main_demo_glados_server(void);	/*glados sensor logger server*/
 
 int main(void)
 {
@@ -40,6 +40,6 @@ int main(void)
 //	main_demo_07();		/* FreeRTOS demo */
 //	main_demo_08();		/* Music demo */
 //	main_demo_09();		/* Internet client and server demo */
-	main_demo_pushingBox();	/*pushingBox data Log and email alert demo*/
+	main_demo_glados_server();	/*pushingBox data Log and email alert demo*/
 	return res;
 }
